@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "velocore",
-    "slug": "snack-f1db8134-5be0-4d5a-a3df-9370672c41a0",
+    "slug": "snack-f1db8134-5ba8-4d1a-a3df-93f872c41a8a",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,12 +20,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.sash111.velocore"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     }
-    "android": {
-      "package": "com.sash111.velocore"
   }
 }
