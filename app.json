@@ -23,6 +23,11 @@
       "edgeToEdgeEnabled": true,
       "package": "com.sash111.velocore"
     },
+    "extra": {
+      "eas": {
+        "projectId": "9e73d22d-c91f-4fac-a001-2c87c95cf786"
+      }
+    },
     "web": {
       "favicon": "./assets/favicon.png"
     }
