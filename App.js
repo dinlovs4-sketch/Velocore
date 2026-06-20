@@ -11,22 +11,17 @@ import {
   SafeAreaView,
   Alert
 } from 'react-native';
-// Импортируем модуль постоянной памяти смартфона
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Ключ, под которым данные будут храниться в памяти телефона
-import { Ionicons } from '@expo/vector-icons';
 
 const STORAGE_KEY = '@velocore_bikes_data';
 
 export default function App() {
   // --- СОСТОЯНИЯ (STATE) ---
-  const [screen, setScreen] = useState('home'); // 'home', 'bike-details'
+  const [screen, setScreen] = useState('home'); 
   const [selectedBike, setSelectedBike] = useState(null);
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   
-  // Данные по умолчанию (на случай, если память телефона пуста)
   const [bikes, setBikes] = useState([
     {
       id: '1',
@@ -55,21 +50,17 @@ export default function App() {
     }
   ]);
 
-  // Временные состояния для редактирования компонента в модальном окне
   const [editBrand, setEditBrand] = useState('');
   const [editModel, setEditModel] = useState('');
   const [editWeight, setEditWeight] = useState('');
   const [editPrice, setEditPrice] = useState('');
 
-  // --- ЛОГИКА СОХРАНЕНИЯ ДАННЫХ (ASYNCSTORAGE) ---
-  
-  // Загрузка данных при старте приложения
+  // --- ЛОГИКА ПАМЯТИ УСТРОЙСТВА ---
   useEffect(() => {
     const loadSavedData = async () => {
       try {
         const savedData = await AsyncStorage.getItem(STORAGE_KEY);
         if (savedData !== null) {
-          // Если в памяти есть сохраненные байки, заменяем дефолтные
           setBikes(JSON.parse(savedData));
         }
       } catch (error) {
@@ -79,7 +70,6 @@ export default function App() {
     loadSavedData();
   }, []);
 
-  // Функция для принудительного сохранения текущего состояния байков
   const saveBikesToStorage = async (updatedBikes) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedBikes));
@@ -89,8 +79,6 @@ export default function App() {
   };
 
   // --- ОБРАБОТЧИКИ НАЖАТИЙ ---
-
-  // ИСПРАВЛЕННАЯ функция кнопки Назад (стрелочки вверху слева)
   const handleBackPress = () => {
     if (screen === 'bike-details') {
       setScreen('home');
@@ -114,7 +102,6 @@ export default function App() {
   };
 
   const handleSaveComponent = () => {
-    // Создаем глубокую копию массива байков для изменений
     const updatedBikes = bikes.map(b => {
       if (b.id === selectedBike.id) {
         const updatedComponents = { ...b.components };
@@ -124,8 +111,6 @@ export default function App() {
           weight: editWeight,
           price: editPrice
         };
-        
-        // Сразу обновляем состояние текущего открытого байка, чтобы интерфейс перерисовывался
         setSelectedBike({ ...b, components: updatedComponents });
         return { ...b, components: updatedComponents };
       }
@@ -133,11 +118,9 @@ export default function App() {
     });
 
     setBikes(updatedBikes);
-    saveBikesToStorage(updatedBikes); // Магия сохранения в память телефона!
+    saveBikesToStorage(updatedBikes);
     setIsModalVisible(false);
   };
-
-  // --- КОМПОНЕНТЫ ИНТЕРФЕЙСА (РЕНДЕР) ---
 
   return (
     <SafeAreaView style={styles.container}>
@@ -176,10 +159,9 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* Экран 2: Интерактивная схема и спецификация */}
+      {/* Экран 2: Схема и спецификация */}
       {screen === 'bike-details' && selectedBike && (
         <View style={{ flex: 1 }}>
-          {/* Схема байка с интерактивными точками */}
           <View style={styles.canvasContainer}>
             <Image source={selectedBike.image} style={styles.bikeCanvasImage} resizeMode="contain" />
             
@@ -191,7 +173,7 @@ export default function App() {
               <Text style={styles.dotText}>F</Text>
             </TouchableOpacity>
 
-            {/* Точка: Задний амортизатор (только для двухподвеса) */}
+            {/* Точка: Задний амортизатор */}
             {selectedBike.type === 'enduro' && (
               <TouchableOpacity 
                 style={[styles.dot, { top: '45%', left: '50%' }]} 
@@ -226,7 +208,7 @@ export default function App() {
             </TouchableOpacity>
           </View>
 
-          {/* Список деталей внизу */}
+          {/* Список деталей */}
           <ScrollView style={styles.specsList}>
             <Text style={styles.specsTitle}>Спецификация {selectedBike.name}</Text>
             {Object.keys(selectedBike.components).map((key) => {
@@ -250,7 +232,7 @@ export default function App() {
         </View>
       )}
 
-      {/* Модальное окно редактирования/добавления параметров */}
+      {/* Модальное окно редактирования */}
       <Modal visible={isModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -260,6 +242,85 @@ export default function App() {
             <TextInput style={styles.input} placeholder="Модель (напр. XT M8100)" value={editModel} onChangeText={setEditModel} />
             <TextInput style={styles.input} placeholder="Вес, грамм" keyboardType="numeric" value={editWeight} onChangeText={setEditWeight} />
             <TextInput style={styles.input} placeholder="Цена, $" keyboardType="numeric" value={editPrice} onChangeText={setEditPrice} />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setIsModalVisible(false)}>
+                <Text style={styles.btnText}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveComponent}>
+                <Text style={styles.btnText}>Сохранить</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+// --- СТИЛИ ИНТЕРФЕЙСА ---
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#121212' },
+  header: { 
+    height: 60, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#222', 
+    paddingHorizontal: 10 
+  },
+  headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 },
+  backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  backButtonText: { color: '#ff3e3e', fontSize: 28, fontWeight: 'bold' },
+  content: { flex: 1, padding: 15 },
+  sectionTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 15 },
+  bikeCard: { height: 180, borderRadius: 12, overflow: 'hidden', marginBottom: 15, backgroundColor: '#1e1e1e' },
+  bikeCardImage: { width: '100%', height: '100%' },
+  bikeCardOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', padding: 15 },
+  bikeCardName: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  bikeCardSub: { color: '#aaa', fontSize: 14, marginTop: 4 },
+  // Исправлено: удален некорректный параметр relative
+  canvasContainer: { height: '40%', width: '100%', backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' },
+  bikeCanvasImage: { width: '95%', height: '95%' },
+  dot: { 
+    position: 'absolute', 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    backgroundColor: '#ff3e3e', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowRadius: 4,
+    shadowOpacity: 0.5
+  },
+  dotText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+  specsList: { flex: 1, backgroundColor: '#121212', padding: 15 },
+  specsTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  specItem: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    paddingVertical: 14, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#222' 
+  },
+  specKey: { color: '#888', fontSize: 16, fontWeight: '600' },
+  specValue: { color: '#fff', fontSize: 15, textAlign: 'right', flex: 1, marginLeft: 10 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#1e1e1e', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#333' },
+  modalTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
+  input: { backgroundColor: '#2a2a2a', color: '#fff', padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 16 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  btn: { flex: 1, padding: 14, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
+  btnCancel: { backgroundColor: '#333' },
+  btnSave: { backgroundColor: '#ff3e3e' },
+  btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+});
+put style={styles.input} placeholder="Цена, $" keyboardType="numeric" value={editPrice} onChangeText={setEditPrice} />
 
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setIsModalVisible(false)}>
