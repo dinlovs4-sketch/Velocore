@@ -18,7 +18,7 @@ const STORAGE_KEY = '@velocore_bikes_data';
 export default function App() {
   // --- СОСТОЯНИЯ (STATE) ---
   const [screen, setScreen] = useState('home'); 
-  const [selectedBike, setSelectedBike] = useState(null);
+  const [selectedBikeId, setSelectedBikeId] = useState(null); // Храним ID вместо объекта для консистентности
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   
@@ -55,6 +55,9 @@ export default function App() {
   const [editWeight, setEditWeight] = useState('');
   const [editPrice, setEditPrice] = useState('');
 
+  // Получаем текущий выбранный велосипед напрямую из массива стейта
+  const selectedBike = bikes.find(b => b.id === selectedBikeId);
+
   // --- ЛОГИКА ПАМЯТИ УСТРОЙСТВА ---
   useEffect(() => {
     const loadSavedData = async () => {
@@ -82,40 +85,45 @@ export default function App() {
   const handleBackPress = () => {
     if (screen === 'bike-details') {
       setScreen('home');
-      setSelectedBike(null);
+      setSelectedBikeId(null);
     }
   };
 
   const handleBikeSelect = (bike) => {
-    setSelectedBike(bike);
+    setSelectedBikeId(bike.id);
     setScreen('bike-details');
   };
 
   const handleComponentPress = (componentKey) => {
-    const compData = selectedBike.components[componentKey] || { brand: '', model: '', weight: '', price: '' };
+    if (!selectedBike) return;
+    
+    const compData = selectedBike.components?.[componentKey] || { brand: '', model: '', weight: '', price: '' };
     setSelectedComponent(componentKey);
-    setEditBrand(compData.brand);
-    setEditModel(compData.model);
-    setEditWeight(compData.weight);
-    setEditPrice(compData.price);
+    setEditBrand(compData.brand || '');
+    setEditModel(compData.model || '');
+    setEditWeight(compData.weight || '');
+    setEditPrice(compData.price || '');
     setIsModalVisible(true);
   };
 
   const handleSaveComponent = () => {
     const updatedBikes = bikes.map(b => {
-      if (b.id === selectedBike.id) {
-        const updatedComponents = { ...b.components };
-        updatedComponents[selectedComponent] = {
-          brand: editBrand,
-          model: editModel,
-          weight: editWeight,
-          price: editPrice
+      if (b.id === selectedBikeId) {
+        return {
+          ...b,
+          components: {
+            ...b.components,
+            [selectedComponent]: {
+              brand: editBrand.trim(),
+              model: editModel.trim(),
+              weight: editWeight.trim(),
+              price: editPrice.trim()
+            }
+          }
         };
-        setSelectedBike({ ...b, components: updatedComponents });
-        return { ...b, components: updatedComponents };
       }
       return b;
-    });
+    };
 
     setBikes(updatedBikes);
     saveBikesToStorage(updatedBikes);
@@ -151,7 +159,7 @@ export default function App() {
               <View style={styles.bikeCardOverlay}>
                 <Text style={styles.bikeCardName}>{bike.name}</Text>
                 <Text style={styles.bikeCardSub}>
-                  Компонентов: {Object.keys(bike.components).length}
+                  Компонентов: {bike.components ? Object.keys(bike.components).length : 0}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -211,7 +219,7 @@ export default function App() {
           {/* Список деталей */}
           <ScrollView style={styles.specsList}>
             <Text style={styles.specsTitle}>Спецификация {selectedBike.name}</Text>
-            {Object.keys(selectedBike.components).map((key) => {
+            {selectedBike.components && Object.keys(selectedBike.components).map((key) => {
               const item = selectedBike.components[key];
               const labels = { fork: 'Вилка', shock: 'Амортизатор', brakes: 'Тормоза', wheels: 'Колеса', drivetrain: 'Трансмиссия' };
               return (
@@ -222,7 +230,7 @@ export default function App() {
                 >
                   <Text style={styles.specKey}>{labels[key] || key}</Text>
                   <Text style={styles.specValue}>
-                    {item.brand ? `${item.brand} ${item.model} (${item.weight}г / ${item.price}$)` : 'Не указано'}
+                    {item && item.brand ? `${item.brand} ${item.model} (${item.weight}г / ${item.price}$)` : 'Не указано'}
                   </Text>
                 </TouchableOpacity>
               );
