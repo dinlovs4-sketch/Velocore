@@ -9,16 +9,24 @@ import {
   TextInput, 
   Modal,
   SafeAreaView,
-  Alert
+  Alert,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = '@velocore_bikes_data';
+const STORAGE_KEY = '@velocore_bikes_data_v2'; // Обновили ключ, так как структура стейта изменилась
+
+// Карта статических изображений, чтобы не хранить require() в AsyncStorage
+const BIKE_IMAGES = {
+  hardtail: require('./Gemini_Generated_Image_jw6uojjw6uojjw6u.png'),
+  enduro: require('./Gemini_Generated_Image_bm9taibm9taibm9t.png'),
+};
 
 export default function App() {
   // --- СОСТОЯНИЯ (STATE) ---
   const [screen, setScreen] = useState('home'); 
-  const [selectedBikeId, setSelectedBikeId] = useState(null); // Храним ID вместо объекта для консистентности
+  const [selectedBikeId, setSelectedBikeId] = useState(null); 
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   
@@ -27,7 +35,6 @@ export default function App() {
       id: '1',
       name: 'Hardtail Trail',
       type: 'hardtail',
-      image: require('./Gemini_Generated_Image_jw6uojjw6uojjw6u.png'),
       components: {
         fork: { brand: 'RockShox', model: 'Lyrik', weight: '2000', price: '750' },
         brakes: { brand: 'Shimano', model: 'XT M8120', weight: '610', price: '320' },
@@ -39,7 +46,6 @@ export default function App() {
       id: '2',
       name: 'Enduro Full-Suspension',
       type: 'enduro',
-      image: require('./Gemini_Generated_Image_bm9taibm9taibm9t.png'),
       components: {
         fork: { brand: 'Fox', model: '38 Factory', weight: '2400', price: '1200' },
         shock: { brand: 'Fox', model: 'Float X2', weight: '650', price: '680' },
@@ -55,7 +61,6 @@ export default function App() {
   const [editWeight, setEditWeight] = useState('');
   const [editPrice, setEditPrice] = useState('');
 
-  // Получаем текущий выбранный велосипед напрямую из массива стейта
   const selectedBike = bikes.find(b => b.id === selectedBikeId);
 
   // --- ЛОГИКА ПАМЯТИ УСТРОЙСТВА ---
@@ -96,38 +101,53 @@ export default function App() {
 
   const handleComponentPress = (componentKey) => {
     if (!selectedBike) return;
-    
     const compData = selectedBike.components?.[componentKey] || { brand: '', model: '', weight: '', price: '' };
+    
     setSelectedComponent(componentKey);
     setEditBrand(compData.brand || '');
     setEditModel(compData.model || '');
-    setEditWeight(compData.weight || '');
-    setEditPrice(compData.price || '');
+    setEditWeight(compData.weight ? String(compData.weight) : '');
+    setEditPrice(compData.price ? String(compData.price) : '');
     setIsModalVisible(true);
   };
 
+  const closeModal = () => {
+    setIsModalVisible(false);
+    setEditBrand('');
+    setEditModel('');
+    setEditWeight('');
+    setEditPrice('');
+    setSelectedComponent(null);
+  };
+
   const handleSaveComponent = () => {
+    // Если бренд и модель пустые — можно считать, что компонент удален или не задан
+    if (!editBrand.trim() && !editModel.trim()) {
+      Alert.alert('Внимание', 'Укажите хотя бы бренд или модель компонента.');
+      return;
+    }
+
+    // Защита от пустых строк в числах (ставим '0', если пусто)
+    const cleanWeight = editWeight.replace(/[^0-9]/g, '') || '0';
+    const cleanPrice = editPrice.replace(/[^0-9]/g, '') || '0';
+
     const updatedBikes = bikes.map(b => {
       if (b.id === selectedBikeId) {
-        return {
-          ...b,
-          components: {
-            ...b.components,
-            [selectedComponent]: {
-              brand: editBrand.trim(),
-              model: editModel.trim(),
-              weight: editWeight.trim(),
-              price: editPrice.trim()
-            }
-          }
+        const updatedComponents = { ...b.components };
+        updatedComponents[selectedComponent] = {
+          brand: editBrand.trim(),
+          model: editModel.trim(),
+          weight: cleanWeight,
+          price: cleanPrice
         };
+        return { ...b, components: updatedComponents };
       }
       return b;
-    };
+    });
 
     setBikes(updatedBikes);
     saveBikesToStorage(updatedBikes);
-    setIsModalVisible(false);
+    closeModal();
   };
 
   return (
@@ -155,7 +175,11 @@ export default function App() {
               style={styles.bikeCard}
               onPress={() => handleBikeSelect(bike)}
             >
-              <Image source={bike.image} style={styles.bikeCardImage} resizeMode="cover" />
+              <Image 
+                source={BIKE_IMAGES[bike.type]} 
+                style={styles.bikeCardImage} 
+                resizeMode="cover" 
+              />
               <View style={styles.bikeCardOverlay}>
                 <Text style={styles.bikeCardName}>{bike.name}</Text>
                 <Text style={styles.bikeCardSub}>
@@ -171,7 +195,11 @@ export default function App() {
       {screen === 'bike-details' && selectedBike && (
         <View style={{ flex: 1 }}>
           <View style={styles.canvasContainer}>
-            <Image source={selectedBike.image} style={styles.bikeCanvasImage} resizeMode="contain" />
+            <Image 
+              source={BIKE_IMAGES[selectedBike.type]} 
+              style={styles.bikeCanvasImage} 
+              resizeMode="contain" 
+            />
             
             {/* Точка: Вилка */}
             <TouchableOpacity 
@@ -222,6 +250,10 @@ export default function App() {
             {selectedBike.components && Object.keys(selectedBike.components).map((key) => {
               const item = selectedBike.components[key];
               const labels = { fork: 'Вилка', shock: 'Амортизатор', brakes: 'Тормоза', wheels: 'Колеса', drivetrain: 'Трансмиссия' };
+              
+              // Проверка, заполнен ли компонент на самом деле
+              const hasData = item?.brand || item?.model;
+
               return (
                 <TouchableOpacity 
                   key={key} 
@@ -230,7 +262,7 @@ export default function App() {
                 >
                   <Text style={styles.specKey}>{labels[key] || key}</Text>
                   <Text style={styles.specValue}>
-                    {item && item.brand ? `${item.brand} ${item.model} (${item.weight}г / ${item.price}$)` : 'Не указано'}
+                    {hasData ? `${item.brand} ${item.model} (${item.weight}г / ${item.price}$)` : 'Не указано'}
                   </Text>
                 </TouchableOpacity>
               );
@@ -241,18 +273,21 @@ export default function App() {
       )}
 
       {/* Модальное окно редактирования */}
-      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
+      <Modal visible={isModalVisible} animationType="slide" transparent={true} onRequestClose={closeModal}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Редактировать компонент</Text>
             
-            <TextInput style={styles.input} placeholder="Бренд (напр. Shimano)" value={editBrand} onChangeText={setEditBrand} />
-            <TextInput style={styles.input} placeholder="Модель (напр. XT M8100)" value={editModel} onChangeText={setEditModel} />
-            <TextInput style={styles.input} placeholder="Вес, грамм" keyboardType="numeric" value={editWeight} onChangeText={setEditWeight} />
-            <TextInput style={styles.input} placeholder="Цена, $" keyboardType="numeric" value={editPrice} onChangeText={setEditPrice} />
+            <TextInput style={styles.input} placeholder="Бренд (напр. Shimano)" placeholderTextColor="#666" value={editBrand} onChangeText={setEditBrand} />
+            <TextInput style={styles.input} placeholder="Модель (напр. XT M8100)" placeholderTextColor="#666" value={editModel} onChangeText={setEditModel} />
+            <TextInput style={styles.input} placeholder="Вес, грамм" placeholderTextColor="#666" keyboardType="numeric" value={editWeight} onChangeText={setEditWeight} />
+            <TextInput style={styles.input} placeholder="Цена, $" placeholderTextColor="#666" keyboardType="numeric" value={editPrice} onChangeText={setEditPrice} />
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setIsModalVisible(false)}>
+              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={closeModal}>
                 <Text style={styles.btnText}>Отмена</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveComponent}>
@@ -260,7 +295,7 @@ export default function App() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
